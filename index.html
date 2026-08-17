@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M4A to MP3</title>
+<meta name="description" content="Convert M4A audio to MP3 in your browser. Nothing is uploaded.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EDEDE8;
+    --card:#FFFFFF;
+    --ink:#14161A;
+    --muted:#6A6F78;
+    --rule:#C9C9C2;
+    --signal:#3B2FD9;
+    --signal-soft:#DDDBFA;
+    --warn:#B03A0F;
+    --radius:4px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Space Grotesk",system-ui,-apple-system,sans-serif;
+    font-size:16px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:820px;margin:0 auto;padding:48px 24px 96px}
+
+  /* Header */
+  header{border-bottom:2px solid var(--ink);padding-bottom:20px;margin-bottom:36px}
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 10px
+  }
+  h1{
+    font-size:clamp(38px,8vw,64px);font-weight:700;line-height:.95;
+    letter-spacing:-.03em;margin:0;
+  }
+  h1 .arrow{color:var(--signal);display:inline-block;padding:0 .12em}
+  .lede{margin:14px 0 0;max-width:46ch;color:var(--muted);font-size:15px}
+
+  /* Drop zone */
+  .drop{
+    background:var(--card);
+    border:2px dashed var(--rule);
+    border-radius:var(--radius);
+    padding:40px 24px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .drop:hover,.drop:focus-visible{border-color:var(--signal)}
+  .drop.over{border-color:var(--signal);background:var(--signal-soft);border-style:solid}
+  .drop strong{display:block;font-size:19px;font-weight:500;margin-bottom:6px}
+  .drop span{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted)}
+  input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+  /* Settings */
+  .settings{
+    display:flex;flex-wrap:wrap;gap:24px;align-items:flex-end;
+    margin-top:24px;padding:18px 20px;background:var(--card);
+    border:1px solid var(--rule);border-radius:var(--radius);
+  }
+  .field{display:flex;flex-direction:column;gap:6px}
+  label{
+    font-family:"IBM Plex Mono",monospace;font-size:11px;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  }
+  select{
+    font-family:"IBM Plex Mono",monospace;font-size:14px;
+    padding:8px 10px;border:1px solid var(--rule);border-radius:var(--radius);
+    background:var(--paper);color:var(--ink);min-width:150px;
+  }
+  .settings .grow{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
+
+  button{
+    font-family:"Space Grotesk",sans-serif;font-size:14px;font-weight:500;
+    padding:10px 18px;border-radius:var(--radius);border:1px solid var(--ink);
+    background:var(--ink);color:var(--paper);cursor:pointer;
+    transition:opacity .15s ease;
+  }
+  button.ghost{background:transparent;color:var(--ink)}
+  button:hover:not(:disabled){opacity:.82}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  :focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+
+  /* Queue */
+  .queue{margin-top:36px;display:flex;flex-direction:column;gap:14px}
+  .item{
+    background:var(--card);border:1px solid var(--rule);
+    border-radius:var(--radius);padding:16px 18px;
+  }
+  .item.done{border-color:var(--signal)}
+  .item.error{border-color:var(--warn)}
+  .item-top{display:flex;gap:16px;align-items:baseline;justify-content:space-between}
+  .name{font-weight:500;overflow-wrap:anywhere}
+  .status{
+    font-family:"IBM Plex Mono",monospace;font-size:11px;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--muted);white-space:nowrap
+  }
+  .item.done .status{color:var(--signal)}
+  .item.error .status{color:var(--warn)}
+  .meta{
+    font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);
+    margin-top:4px;overflow-wrap:anywhere
+  }
+
+  /* Signature: segmented level meter */
+  .meter{display:flex;gap:2px;margin-top:14px;height:14px}
+  .seg{
+    flex:1;background:var(--rule);border-radius:1px;
+    transition:background-color .12s linear;
+  }
+  .seg.lit{background:var(--signal)}
+  .item.error .seg.lit{background:var(--warn)}
+  @media (prefers-reduced-motion:reduce){
+    .seg{transition:none}
+    *{scroll-behavior:auto}
+  }
+
+  .item-actions{margin-top:14px}
+  .item-actions button{padding:7px 14px;font-size:13px}
+
+  footer{
+    margin-top:56px;padding-top:20px;border-top:1px solid var(--rule);
+    font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted)
+  }
+  footer p{margin:0 0 8px}
+  .banner{
+    margin-top:20px;padding:12px 16px;border-left:3px solid var(--warn);
+    background:var(--card);font-size:14px;display:none
+  }
+  .banner.show{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Local audio conversion</p>
+    <h1>M4A<span class="arrow">&rarr;</span>MP3</h1>
+    <p class="lede">Decoding and encoding happen in this tab. Your files never leave the device, so there is no upload, no queue and no account.</p>
+  </header>
+
+  <div class="drop" id="drop" role="button" tabindex="0" aria-label="Choose audio files or drop them here">
+    <strong>Drop audio files here</strong>
+    <span>or press to browse &middot; .m4a .mp4 .aac .wav .flac .ogg</span>
+  </div>
+  <input type="file" id="picker" accept="audio/*,.m4a,.mp4,.aac,.wav,.flac,.ogg,.opus" multiple>
+
+  <div class="settings">
+    <div class="field">
+      <label for="bitrate">Bitrate</label>
+      <select id="bitrate">
+        <option value="128">128 kbps</option>
+        <option value="192" selected>192 kbps</option>
+        <option value="256">256 kbps</option>
+        <option value="320">320 kbps</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="channels">Channels</label>
+      <select id="channels">
+        <option value="auto" selected>Match source</option>
+        <option value="1">Mono</option>
+      </select>
+    </div>
+    <div class="grow">
+      <button id="convert" disabled>Convert all</button>
+      <button id="downloadAll" class="ghost" disabled>Download all</button>
+      <button id="clear" class="ghost" disabled>Clear</button>
+    </div>
+  </div>
+
+  <div class="banner" id="banner"></div>
+
+  <div class="queue" id="queue"></div>
+
+  <footer>
+    <p>Uses the browser's own audio decoder plus the LAME encoder compiled to JavaScript.</p>
+    <p>Firefox cannot always decode AAC in M4A files. Chrome, Edge and Safari handle them reliably.</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const dropEl = document.getElementById('drop');
+  const picker = document.getElementById('picker');
+  const queueEl = document.getElementById('queue');
+  const bannerEl = document.getElementById('banner');
+  const convertBtn = document.getElementById('convert');
+  const downloadAllBtn = document.getElementById('downloadAll');
+  const clearBtn = document.getElementById('clear');
+  const bitrateSel = document.getElementById('bitrate');
+  const channelSel = document.getElementById('channels');
+
+  const SEGMENTS = 28;
+  const VALID_RATES = [8000,11025,12000,16000,22050,24000,32000,44100,48000];
+  let items = [];
+  let busy = false;
+  let encoderReady = null;
+
+  // ---- Encoder loader (CDN with fallback) ----
+  function loadScript(src){
+    return new Promise(function(res, rej){
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = res;
+      s.onerror = function(){ rej(new Error('Failed to load ' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+  function ensureEncoder(){
+    if (encoderReady) return encoderReady;
+    const sources = [
+      'lame.min.js',
+      'https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js',
+      'https://unpkg.com/lamejs@1.2.1/lame.min.js'
+    ];
+    encoderReady = (async function(){
+      for (let i = 0; i < sources.length; i++){
+        try {
+          await loadScript(sources[i]);
+          if (window.lamejs && window.lamejs.Mp3Encoder) return window.lamejs;
+        } catch(e){ /* try next source */ }
+      }
+      throw new Error('The MP3 encoder could not be loaded. Check the network connection or place lame.min.js beside this page.');
+    })();
+    return encoderReady;
+  }
+
+  // ---- Helpers ----
+  function showBanner(msg){
+    bannerEl.textContent = msg;
+    bannerEl.classList.add('show');
+  }
+  function hideBanner(){ bannerEl.classList.remove('show'); }
+
+  function formatBytes(n){
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n/1024).toFixed(1) + ' KB';
+    return (n/1048576).toFixed(1) + ' MB';
+  }
+  function formatTime(sec){
+    const m = Math.floor(sec/60), s = Math.floor(sec%60);
+    return m + ':' + String(s).padStart(2,'0');
+  }
+  function mp3Name(name){
+    return name.replace(/\.[^./\\]+$/, '') + '.mp3';
+  }
+  function nextFrame(){
+    return new Promise(function(r){ setTimeout(r, 0); });
+  }
+
+  // ---- Queue rendering ----
+  function addFiles(fileList){
+    const incoming = Array.prototype.slice.call(fileList);
+    if (!incoming.length) return;
+    hideBanner();
+    incoming.forEach(function(file){
+      const item = {
+        file: file,
+        id: 'f' + Math.random().toString(36).slice(2),
+        state: 'ready',
+        progress: 0,
+        blob: null,
+        meta: formatBytes(file.size),
+        error: ''
+      };
+      items.push(item);
+      queueEl.appendChild(buildRow(item));
+    });
+    syncButtons();
+  }
+
+  function buildRow(item){
+    const row = document.createElement('div');
+    row.className = 'item';
+    row.id = item.id;
+
+    const top = document.createElement('div');
+    top.className = 'item-top';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = item.file.name;
+    const status = document.createElement('div');
+    status.className = 'status';
+    status.textContent = 'Ready';
+    top.appendChild(name);
+    top.appendChild(status);
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = item.meta;
+
+    const meter = document.createElement('div');
+    meter.className = 'meter';
+    meter.setAttribute('role','progressbar');
+    meter.setAttribute('aria-valuemin','0');
+    meter.setAttribute('aria-valuemax','100');
+    meter.setAttribute('aria-valuenow','0');
+    for (let i = 0; i < SEGMENTS; i++){
+      const seg = document.createElement('div');
+      seg.className = 'seg';
+      meter.appendChild(seg);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'item-actions';
+
+    row.appendChild(top);
+    row.appendChild(meta);
+    row.appendChild(meter);
+    row.appendChild(actions);
+
+    item.dom = { row: row, status: status, meta: meta, meter: meter, actions: actions };
+    return row;
+  }
+
+  function setProgress(item, ratio){
+    item.progress = ratio;
+    const lit = Math.round(ratio * SEGMENTS);
+    const segs = item.dom.meter.children;
+    for (let i = 0; i < segs.length; i++){
+      segs[i].classList.toggle('lit', i < lit);
+    }
+    item.dom.meter.setAttribute('aria-valuenow', String(Math.round(ratio*100)));
+  }
+
+  function setStatus(item, text, cls){
+    item.dom.status.textContent = text;
+    item.dom.row.classList.remove('done','error');
+    if (cls) item.dom.row.classList.add(cls);
+  }
+
+  function addDownload(item){
+    item.dom.actions.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.textContent = 'Save ' + mp3Name(item.file.name);
+    btn.addEventListener('click', function(){ saveItem(item); });
+    item.dom.actions.appendChild(btn);
+  }
+
+  function saveItem(item){
+    if (!item.blob) return;
+    const url = URL.createObjectURL(item.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = mp3Name(item.file.name);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  }
+
+  function syncButtons(){
+    const pending = items.some(function(i){ return i.state === 'ready'; });
+    const finished = items.some(function(i){ return i.state === 'done'; });
+    convertBtn.disabled = busy || !pending;
+    downloadAllBtn.disabled = busy || !finished;
+    clearBtn.disabled = busy || items.length === 0;
+    convertBtn.textContent = busy ? 'Converting…' : 'Convert all';
+  }
+
+  // ---- Decode ----
+  async function decode(file){
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) throw new Error('This browser does not support the Web Audio API.');
+    const ctx = new AudioCtx();
+    const bytes = await file.arrayBuffer();
+    let buffer;
+    try {
+      buffer = await new Promise(function(res, rej){
+        const p = ctx.decodeAudioData(bytes, res, function(){
+          rej(new Error('The browser could not decode this file. Firefox often fails on AAC in M4A, so try Chrome or Edge.'));
+        });
+        if (p && p.then) p.then(res, function(){
+          rej(new Error('The browser could not decode this file. Firefox often fails on AAC in M4A, so try Chrome or Edge.'));
+        });
+      });
+    } finally {
+      if (ctx.close) ctx.close();
+    }
+    if (VALID_RATES.indexOf(buffer.sampleRate) !== -1) return buffer;
+    return resample(buffer, 44100);
+  }
+
+  async function resample(buffer, rate){
+    const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const length = Math.ceil(buffer.duration * rate);
+    const off = new OfflineCtx(buffer.numberOfChannels, length, rate);
+    const src = off.createBufferSource();
+    src.buffer = buffer;
+    src.connect(off.destination);
+    src.start(0);
+    return await off.startRendering();
+  }
+
+  // ---- Encode ----
+  function toInt16(float32){
+    const out = new Int16Array(float32.length);
+    for (let i = 0; i < float32.length; i++){
+      let s = float32[i];
+      if (s > 1) s = 1; else if (s < -1) s = -1;
+      out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    return out;
+  }
+
+  async function encode(item, buffer, kbps, forceMono){
+    const lame = await ensureEncoder();
+    const sourceChannels = buffer.numberOfChannels;
+    const channels = (forceMono || sourceChannels === 1) ? 1 : 2;
+    const rate = buffer.sampleRate;
+
+    const left = toInt16(buffer.getChannelData(0));
+    let right = null;
+    if (channels === 2) right = toInt16(buffer.getChannelData(1));
+
+    const encoder = new lame.Mp3Encoder(channels, rate, kbps);
+    const BLOCK = 1152;
+    const BATCH = 160;                 // blocks encoded before yielding to the UI
+    const chunks = [];
+    const total = left.length;
+    let offset = 0;
+    let sinceYield = 0;
+
+    while (offset < total){
+      const end = Math.min(offset + BLOCK, total);
+      const l = left.subarray(offset, end);
+      const buf = channels === 2
+        ? encoder.encodeBuffer(l, right.subarray(offset, end))
+        : encoder.encodeBuffer(l);
+      if (buf.length > 0) chunks.push(new Int8Array(buf));
+      offset = end;
+      sinceYield++;
+      if (sinceYield >= BATCH){
+        sinceYield = 0;
+        setProgress(item, offset / total);
+        await nextFrame();
+      }
+    }
+    const tail = encoder.flush();
+    if (tail.length > 0) chunks.push(new Int8Array(tail));
+    setProgress(item, 1);
+
+    return {
+      blob: new Blob(chunks, { type: 'audio/mpeg' }),
+      channels: channels,
+      rate: rate,
+      duration: buffer.duration
+    };
+  }
+
+  // ---- Run ----
+  async function convertAll(){
+    if (busy) return;
+    busy = true;
+    hideBanner();
+    syncButtons();
+
+    const kbps = parseInt(bitrateSel.value, 10);
+    const forceMono = channelSel.value === '1';
+
+    for (let i = 0; i < items.length; i++){
+      const item = items[i];
+      if (item.state !== 'ready') continue;
+      try {
+        item.state = 'working';
+        setStatus(item, 'Decoding');
+        setProgress(item, 0);
+        await nextFrame();
+
+        const buffer = await decode(item.file);
+
+        setStatus(item, 'Encoding');
+        const result = await encode(item, buffer, kbps, forceMono);
+
+        item.blob = result.blob;
+        item.state = 'done';
+        setStatus(item, 'Done', 'done');
+        item.dom.meta.textContent =
+          formatTime(result.duration) + '  ·  ' +
+          (result.rate/1000).toFixed(1) + ' kHz  ·  ' +
+          (result.channels === 2 ? 'stereo' : 'mono') + '  ·  ' +
+          kbps + ' kbps  ·  ' +
+          formatBytes(item.file.size) + ' → ' + formatBytes(result.blob.size);
+        addDownload(item);
+      } catch (err){
+        item.state = 'error';
+        item.error = err && err.message ? err.message : String(err);
+        setStatus(item, 'Failed', 'error');
+        item.dom.meta.textContent = item.error;
+        setProgress(item, 1);
+      }
+      syncButtons();
+    }
+
+    busy = false;
+    syncButtons();
+  }
+
+  function downloadAll(){
+    const done = items.filter(function(i){ return i.state === 'done'; });
+    done.forEach(function(item, idx){
+      setTimeout(function(){ saveItem(item); }, idx * 350);
+    });
+  }
+
+  function clearAll(){
+    items = [];
+    queueEl.innerHTML = '';
+    picker.value = '';
+    hideBanner();
+    syncButtons();
+  }
+
+  // ---- Events ----
+  dropEl.addEventListener('click', function(){ picker.click(); });
+  dropEl.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); picker.click(); }
+  });
+  picker.addEventListener('change', function(){ addFiles(picker.files); });
+
+  ['dragenter','dragover'].forEach(function(evt){
+    dropEl.addEventListener(evt, function(e){
+      e.preventDefault(); e.stopPropagation();
+      dropEl.classList.add('over');
+    });
+  });
+  ['dragleave','drop'].forEach(function(evt){
+    dropEl.addEventListener(evt, function(e){
+      e.preventDefault(); e.stopPropagation();
+      dropEl.classList.remove('over');
+    });
+  });
+  dropEl.addEventListener('drop', function(e){
+    if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+  });
+  window.addEventListener('dragover', function(e){ e.preventDefault(); });
+  window.addEventListener('drop', function(e){ e.preventDefault(); });
+
+  convertBtn.addEventListener('click', convertAll);
+  downloadAllBtn.addEventListener('click', downloadAll);
+  clearBtn.addEventListener('click', clearAll);
+
+  window.addEventListener('beforeunload', function(e){
+    if (busy){ e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // Warm the encoder so the first conversion is not held up by the download
+  ensureEncoder().catch(function(err){ showBanner(err.message); });
+
+  syncButtons();
+})();
+</script>
+</body>
+</html>
